@@ -64,9 +64,13 @@ This is a Flask-based web application that helps you manage your Amazon wishlist
 1. You MUST set your wishlist and it's gotta be public (Don't forget to hit save)
 2. You MUST "Setup your kindle" so we can get your authentication on a real computer with a display
 3. We need a $DISPLAY argument... so headless get's tricky for now... I haven't looked into this yet
-4. There is a script for activating your conda env and starting the server
+4. The app runs as a system service (daemon) and starts automatically at boot
    ```bash
-   ./start_flask.sh
+   # Check if the service is running
+   sudo systemctl status kindly-sourced-paper.service
+   
+   # If not running, start it
+   sudo systemctl start kindly-sourced-paper.service
    ```
 
 ## 🎯 How to Use
@@ -92,26 +96,87 @@ Key configuration files:
 - `config.py` - Application settings
 - `.env` - Environment variables (create if needed)
 
+## 🔄 Running as a System Service (Daemon)
+
+The application is configured to run as a systemd service, which provides better reliability and automatic startup management.
+
+### Service Installation
+
+The service is already installed and configured. Here are the key management commands:
+
+```bash
+# Check service status
+sudo systemctl status kindly-sourced-paper.service
+
+# Start the service
+sudo systemctl start kindly-sourced-paper.service
+
+# Stop the service
+sudo systemctl stop kindly-sourced-paper.service
+
+# Restart the service
+sudo systemctl restart kindly-sourced-paper.service
+
+# Enable automatic startup at boot (already enabled)
+sudo systemctl enable kindly-sourced-paper.service
+
+# Disable automatic startup
+sudo systemctl disable kindly-sourced-paper.service
+
+# View service logs
+sudo journalctl -u kindly-sourced-paper.service -f
+```
+
+### Service Configuration
+
+The service configuration file is located at `/etc/systemd/system/kindly-sourced-paper.service` and includes:
+
+- **Automatic startup** at boot
+- **Automatic restart** if the service crashes
+- **Proper environment** setup for conda
+- **Logging** to `logs/daemon.log`
+- **User permissions** (runs as your user account)
+
+### Daemon Management Script
+
+For convenience, use the provided management script:
+
+```bash
+# Quick commands
+./manage_daemon.sh status      # Check service status
+./manage_daemon.sh start       # Start the daemon
+./manage_daemon.sh stop        # Stop the daemon
+./manage_daemon.sh restart     # Restart the daemon
+./manage_daemon.sh logs        # View live systemd logs
+./manage_daemon.sh daemon-logs # View live daemon.log file
+
+# See all available commands
+./manage_daemon.sh
+```
+
+### Manual Control Scripts
+
+You can also use the original scripts for manual control:
+
+```bash
+# Start manually (if service is stopped)
+./start_flask.sh
+
+# Stop manually
+./stop_flask.sh
+```
+
+**Note**: If you use the manual scripts while the service is running, you may have conflicts. Use `./manage_daemon.sh stop` first.
+
 ## ⏰ Automated Wishlist Crawling
 
-You can set up automatic wishlist crawling to run every 12 hours using a simple cron job + Start the server at reboot:
+Set up automatic wishlist crawling to run every 12 hours using cron:
 
-### 0. Edit Your Crontab
+### Add the Cron Job
 
 ```bash
 crontab -e
 ```
-
-### 1. Start the server @ reboot
-
-We want our server to start at reboot with 
-```bash 
-# Start our book app 30 seconds after boot
-@reboot sleep 30; /home/jakem/Documents/Projects/kindly-sourced-paper/start_flask.sh
-```
-
-
-### 2. Add the Cron Job
 
 Add this line for every 12 hours:
 
@@ -132,17 +197,14 @@ Add this line for every 12 hours:
 0 6,18 * * * curl -s -X POST http://localhost:5001/api/crawl-wishlist
 ```
 
-### 3. Optional: Add Basic Logging
-
-If you want to log the cron job output:
+### Optional: Add Basic Logging
 
 ```bash
 # With simple logging
-0 */12 * * * curl -s -X POST http://localhost:5001/api/crawl-wishlist >> /path/to/your/project/logs/cron.log 2>&1
+0 */12 * * * curl -s -X POST http://localhost:5001/api/crawl-wishlist >> /home/jakem/Documents/Projects/kindly-sourced-paper/logs/cron.log 2>&1
 ```
 
-
-**Note**: Make sure your Flask app is running on localhost:5001 when the cron job executes, otherwise the curl will fail silently. The Flask app handles all the detailed logging and error handling internally.
+**Note**: The Flask app daemon must be running for the cron job to work. Check service status with `sudo systemctl status kindly-sourced-paper.service`.
 
 ## 🔧 Troubleshooting
 
@@ -163,11 +225,16 @@ If you want to log the cron job output:
 - Check available disk space
 - Review file naming conventions
 
+**Service/Daemon Issues**:
+- Check service status: `sudo systemctl status kindly-sourced-paper.service`
+- View service logs: `sudo journalctl -u kindly-sourced-paper.service -f`
+- Restart service: `sudo systemctl restart kindly-sourced-paper.service`
+- Check daemon logs: `tail -f logs/daemon.log`
+
 **Cron Job Issues**:
-- Ensure Flask app is running when cron executes
-- Check `logs/cron_crawl.log` for cron-specific errors
-- Verify script has execute permissions (`chmod +x`)
-- Use full absolute paths in crontab entries
+- Ensure Flask daemon is running when cron executes
+- Check `logs/cron.log` for cron-specific errors
+- Verify service is enabled: `sudo systemctl is-enabled kindly-sourced-paper.service`
 
 ### Debug Mode
 
