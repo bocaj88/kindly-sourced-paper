@@ -33,7 +33,7 @@ This is a Flask-based web application that helps you manage your Amazon wishlist
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/kindly-sourced-paper.git
+   git clone https://github.com/bocaj88/kindly-sourced-paper.git
    cd kindly-sourced-paper
    ```
 
