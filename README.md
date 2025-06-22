@@ -94,13 +94,22 @@ Key configuration files:
 
 ## ⏰ Automated Wishlist Crawling
 
-You can set up automatic wishlist crawling to run every 12 hours using a simple cron job:
+You can set up automatic wishlist crawling to run every 12 hours using a simple cron job + Start the server at reboot:
 
-### 1. Edit Your Crontab
+### 0. Edit Your Crontab
 
 ```bash
 crontab -e
 ```
+
+### 1. Start the server @ reboot
+
+We want our server to start at reboot with 
+```bash 
+# Start our book app 30 seconds after boot
+@reboot sleep 30; /home/jakem/Documents/Projects/kindly-sourced-paper/start_flask.sh
+```
+
 
 ### 2. Add the Cron Job
 
@@ -131,6 +140,7 @@ If you want to log the cron job output:
 # With simple logging
 0 */12 * * * curl -s -X POST http://localhost:5001/api/crawl-wishlist >> /path/to/your/project/logs/cron.log 2>&1
 ```
+
 
 **Note**: Make sure your Flask app is running on localhost:5001 when the cron job executes, otherwise the curl will fail silently. The Flask app handles all the detailed logging and error handling internally.
 
