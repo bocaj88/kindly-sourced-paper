@@ -83,6 +83,48 @@ Key configuration files:
 - `config.py` - Application settings
 - `.env` - Environment variables (create if needed)
 
+## ⏰ Automated Wishlist Crawling
+
+You can set up automatic wishlist crawling to run every 12 hours using a simple cron job:
+
+### 1. Edit Your Crontab
+
+```bash
+crontab -e
+```
+
+### 2. Add the Cron Job
+
+Add this line for every 12 hours:
+
+```bash
+# KindleSource Automatic Wishlist Crawler - Every 12 hours
+0 */12 * * * curl -s -X POST http://localhost:5001/api/crawl-wishlist
+```
+
+**Alternative Schedules:**
+```bash
+# Daily at 8 AM and 8 PM
+0 8,20 * * * curl -s -X POST http://localhost:5001/api/crawl-wishlist
+
+# Daily at midnight and noon
+0 0,12 * * * curl -s -X POST http://localhost:5001/api/crawl-wishlist
+
+# Daily at 6 AM and 6 PM  
+0 6,18 * * * curl -s -X POST http://localhost:5001/api/crawl-wishlist
+```
+
+### 3. Optional: Add Basic Logging
+
+If you want to log the cron job output:
+
+```bash
+# With simple logging
+0 */12 * * * curl -s -X POST http://localhost:5001/api/crawl-wishlist >> /path/to/your/project/logs/cron.log 2>&1
+```
+
+**Note**: Make sure your Flask app is running on localhost:5001 when the cron job executes, otherwise the curl will fail silently. The Flask app handles all the detailed logging and error handling internally.
+
 ## 🔧 Troubleshooting
 
 ### Common Issues
@@ -101,6 +143,12 @@ Key configuration files:
 - Verify download directory permissions
 - Check available disk space
 - Review file naming conventions
+
+**Cron Job Issues**:
+- Ensure Flask app is running when cron executes
+- Check `logs/cron_crawl.log` for cron-specific errors
+- Verify script has execute permissions (`chmod +x`)
+- Use full absolute paths in crontab entries
 
 ### Debug Mode
 
