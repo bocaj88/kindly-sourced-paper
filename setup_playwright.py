@@ -75,9 +75,7 @@ def main():
         print("🎉 Setup complete!")
         print()
         print("Next steps:")
-        print("1. Configure your Amazon credentials in config.py")
-        print("2. Run: python send_to_kindle.py setup")
-        print("3. Send books: python send_to_kindle.py path/to/book.epub")
+        print("See the Git Repo README.md for next steps!")
     
     return success
 

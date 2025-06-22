@@ -60,6 +60,15 @@ This is a Flask-based web application that helps you manage your Amazon wishlist
 
 6. **Open your browser** and navigate to: `http://localhost:5001`
 
+## Getting started notes!
+1. You MUST set your wishlist and it's gotta be public (Don't forget to hit save)
+2. You MUST "Setup your kindle" so we can get your authentication on a real computer with a display
+3. We need a $DISPLAY argument... so headless get's tricky for now... I haven't looked into this yet
+4. There is a script for activating your conda env and starting the server
+   ```bash
+   ./start_flask.sh
+   ```
+
 ## 🎯 How to Use
 
 ### First Time Setup
