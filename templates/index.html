@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - KindleSource{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h2 mb-4">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </h1>
+        </div>
+    </div>
+
+    <!-- Status Card -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card status-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-activity"></i> Current Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="card-text">
+                                <strong>Status:</strong> 
+                                <span id="current-status">
+                                    {% if status.is_running %}
+                                        <span class="badge bg-warning">Running</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Ready</span>
+                                    {% endif %}
+                                </span>
+                            </p>
+                            <p class="card-text">
+                                <strong>Current Task:</strong> 
+                                <span id="current-task">{{ status.current_task or 'None' }}</span>
+                            </p>
+                            <p class="card-text">
+                                <strong>Wishlist:</strong> 
+                                <a href="{{ wishlist_url }}" target="_blank" class="text-decoration-none">
+                                    <i class="bi bi-box-arrow-up-right"></i> View Wishlist
+                                </a>
+                            </p>
+                            <p class="card-text">
+                                <strong>Manual Actions:</strong><br>
+                                <a href="https://www.amazon.com/sendtokindle" target="_blank" class="text-decoration-none me-3">
+                                    <i class="bi bi-tablet"></i> Send to Kindle
+                                </a>
+                                <a href="https://libgen.li" target="_blank" class="text-decoration-none">
+                                    <i class="bi bi-search"></i> LibGen Search
+                                </a>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="card-text">
+                                <strong>Last Update:</strong> 
+                                <span id="last-update">{{ status.last_update.strftime('%Y-%m-%d %H:%M:%S') if status.last_update else 'Never' }}</span>
+                            </p>
+                            <div class="progress-wrapper {% if not status.is_running %}d-none{% endif %}">
+                                <label class="form-label">Progress:</label>
+                                <div class="progress">
+                                    <div id="progress-bar" class="progress-bar" role="progressbar" 
+                                         style="width: {{ status.progress }}%" 
+                                         aria-valuenow="{{ status.progress }}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                        {{ status.progress }}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Control Buttons -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-gear"></i> Controls
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <button id="crawl-wishlist-btn" class="btn btn-primary w-100" 
+                                    {% if status.is_running %}disabled{% endif %}>
+                                <i class="bi bi-download"></i> Crawl Wishlist
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="/manual-search" class="btn btn-info w-100">
+                                <i class="bi bi-search"></i> Manual Search
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button id="setup-kindle-btn" class="btn btn-warning w-100" 
+                                    {% if status.is_running %}disabled{% endif %}>
+                                <i class="bi bi-kindle"></i> Setup Kindle
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="/logs" class="btn btn-secondary w-100">
+                                <i class="bi bi-journal-text"></i> View Logs
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Books -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-clock-history"></i> Recent Books
+                    </h5>
+                    <a href="/recent-books" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if recent_books %}
+                        <!-- Header row for desktop -->
+                        <div class="book-item border-bottom pb-2 mb-3 d-none d-md-block" style="background-color: #f8f9fa;">
+                            <div class="row align-items-center">
+                                <div class="col-md-4">
+                                    <strong>Book Title</strong>
+                                </div>
+                                <div class="col-md-1">
+                                    <strong>Format</strong>
+                                </div>
+                                <div class="col-md-2">
+                                    <strong>Size</strong>
+                                </div>
+                                <div class="col-md-2">
+                                    <strong>Date</strong>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Actions</strong>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% for book in recent_books[:5] %}
+                            <div class="book-item">
+                                <div class="row align-items-center">
+                                    <div class="col-md-4 col-12">
+                                        <h6 class="mb-1">{{ book.name[:50] }}{% if book.name|length > 50 %}...{% endif %}</h6>
+                                    </div>
+                                    <div class="col-md-1 col-6">
+                                        <span class="book-format format-{{ book.format.lower() }}">
+                                            {{ book.format }}
+                                        </span>
+                                    </div>
+                                    <div class="col-md-2 col-6">
+                                        <small class="text-muted">{{ book.size }}</small>
+                                    </div>
+                                    <div class="col-md-2 col-6">
+                                        <small class="text-muted">{{ book.date }}</small>
+                                    </div>
+                                    <div class="col-md-3 col-6 mt-2 mt-md-0">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="/download/{{ book.name | urlencode }}" 
+                                               class="btn btn-outline-primary btn-sm" 
+                                               title="Download {{ book.name }}">
+                                                <i class="bi bi-download"></i> <span class="d-none d-lg-inline">Download</span>
+                                            </a>
+                                            <button class="btn btn-outline-danger btn-sm" 
+                                                    onclick="deleteBookDashboard('{{ book.name | urlencode }}')" 
+                                                    title="Delete {{ book.name }}">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                            <p class="mt-2">No books downloaded yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Logs -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-journal-text"></i> Recent Activity
+                    </h5>
+                    <a href="/logs" class="btn btn-sm btn-outline-secondary">View All Logs</a>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    <div id="recent-logs">
+                        {% if status.logs %}
+                            {% for log in status.logs[-5:] %}
+                                <div class="log-entry log-{{ log.level }}">
+                                    <small class="text-muted">{{ log.timestamp[:19] }}</small> - {{ log.message }}
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center text-muted py-3">
+                                <i class="bi bi-journal"></i>
+                                <p class="mt-2 mb-0">No recent activity</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-message">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="confirm-action" class="btn btn-primary">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Toast -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="notification-toast" class="toast" role="alert">
+        <div class="toast-header">
+            <i class="bi bi-info-circle-fill text-primary me-2"></i>
+            <strong class="me-auto">Notification</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="toast-message">
+            <!-- Message will be inserted here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Update dashboard data periodically
+    function updateDashboard() {
+        fetch('/status')
+            .then(response => response.json())
+            .then(data => {
+                // Update status badge
+                const statusElement = document.getElementById('current-status');
+                const taskElement = document.getElementById('current-task');
+                const updateElement = document.getElementById('last-update');
+                const progressWrapper = document.querySelector('.progress-wrapper');
+                const progressBar = document.getElementById('progress-bar');
+                const crawlBtn = document.getElementById('crawl-wishlist-btn');
+                const setupBtn = document.getElementById('setup-kindle-btn');
+                
+                if (data.is_running) {
+                    statusElement.innerHTML = '<span class="badge bg-warning">Running</span>';
+                    taskElement.textContent = data.current_task || 'Processing...';
+                    progressWrapper.style.display = 'block';
+                    progressBar.style.width = data.progress + '%';
+                    progressBar.textContent = data.progress + '%';
+                    progressBar.setAttribute('aria-valuenow', data.progress);
+                    crawlBtn.disabled = true;
+                    setupBtn.disabled = true;
+                } else {
+                    statusElement.innerHTML = '<span class="badge bg-success">Ready</span>';
+                    taskElement.textContent = 'None';
+                    progressWrapper.style.display = 'none';
+                    crawlBtn.disabled = false;
+                    setupBtn.disabled = false;
+                }
+                
+                updateElement.textContent = data.last_update ? 
+                    new Date(data.last_update).toLocaleString() : 'Never';
+                
+                // Update recent logs
+                const recentLogs = document.getElementById('recent-logs');
+                if (data.logs && data.logs.length > 0) {
+                    const lastLogs = data.logs.slice(-5);
+                    recentLogs.innerHTML = lastLogs.map(log => 
+                        `<div class="log-entry log-${log.level}">
+                            <small class="text-muted">${log.timestamp.substring(0, 19)}</small> - ${log.message}
+                        </div>`
+                    ).join('');
+                }
+            })
+            .catch(error => {
+                console.error('Error updating dashboard:', error);
+            });
+    }
+    
+    // Show notification toast
+    function showNotification(message, type = 'info') {
+        const toast = document.getElementById('notification-toast');
+        const toastMessage = document.getElementById('toast-message');
+        const toastIcon = toast.querySelector('.toast-header i');
+        
+        toastMessage.textContent = message;
+        
+        // Update icon based on type
+        if (type === 'error') {
+            toastIcon.className = 'bi bi-exclamation-triangle-fill text-danger me-2';
+        } else if (type === 'success') {
+            toastIcon.className = 'bi bi-check-circle-fill text-success me-2';
+        } else {
+            toastIcon.className = 'bi bi-info-circle-fill text-primary me-2';
+        }
+        
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+    }
+    
+    // Delete book from dashboard
+    function deleteBookDashboard(bookName) {
+        const decodedName = decodeURIComponent(bookName);
+        document.getElementById('confirm-message').innerHTML = 
+            `Are you sure you want to delete this book?<br><strong>${decodedName}</strong><br><span class="text-muted">This action cannot be undone.</span>`;
+        
+        const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+        modal.show();
+        
+        document.getElementById('confirm-action').onclick = function() {
+            fetch(`/api/delete-book/${encodeURIComponent(decodedName)}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Book deleted successfully', 'success');
+                    // Reload the page to update the book list
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showNotification('Failed to delete book: ' + (data.error || 'Unknown error'), 'error');
+                }
+                modal.hide();
+            })
+            .catch(error => {
+                showNotification('Error deleting book: ' + error.message, 'error');
+                modal.hide();
+            });
+        };
+    }
+    
+    // Crawl wishlist button
+    document.getElementById('crawl-wishlist-btn').addEventListener('click', function() {
+        document.getElementById('confirm-message').textContent = 
+            'This will crawl your Amazon wishlist and download any new books. Continue?';
+        
+        const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+        modal.show();
+        
+        document.getElementById('confirm-action').onclick = function() {
+            fetch('/api/crawl-wishlist', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Wishlist crawling started!');
+                } else {
+                    showNotification(data.error || 'Failed to start crawling', 'error');
+                }
+                modal.hide();
+            })
+            .catch(error => {
+                showNotification('Error starting crawl: ' + error.message, 'error');
+                modal.hide();
+            });
+        };
+    });
+    
+    // Setup Kindle button
+    document.getElementById('setup-kindle-btn').addEventListener('click', function() {
+        document.getElementById('confirm-message').textContent = 
+            'This will open a browser window for Kindle authentication setup. Continue? You\'ll have 120 seconds to sign in else you\'ll have to try again ';
+        
+        const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+        modal.show();
+        
+        document.getElementById('confirm-action').onclick = function() {
+            fetch('/api/setup-kindle', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Kindle setup completed!');
+                } else {
+                    showNotification(data.error || 'Setup failed', 'error');
+                }
+                modal.hide();
+            })
+            .catch(error => {
+                showNotification('Error during setup: ' + error.message, 'error');
+                modal.hide();
+            });
+        };
+    });
+    
+    // Update dashboard every 3 seconds
+    setInterval(updateDashboard, 3000);
+    updateDashboard(); // Initial call
+</script>
+{% endblock %} 

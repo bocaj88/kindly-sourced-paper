@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}KindleSource{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <style>
+        .sidebar {
+            position: fixed;
+            top: 56px;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 0;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+        }
+        
+        .sidebar-sticky {
+            position: sticky;
+            top: 56px;
+            height: calc(100vh - 56px);
+            padding-top: .5rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        
+        .sidebar .nav-link {
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .sidebar .nav-link:hover {
+            color: #007bff;
+        }
+        
+        .sidebar .nav-link.active {
+            color: #007bff;
+        }
+        
+        .main-content {
+            margin-left: 240px;
+            margin-top: 70px;
+            padding: 20px;
+        }
+        
+        .status-card {
+            border-left: 4px solid #007bff;
+        }
+        
+        .progress-wrapper {
+            margin-top: 10px;
+        }
+        
+        .log-entry {
+            padding: 8px 12px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .log-info {
+            background-color: #d1ecf1;
+            border-left: 4px solid #bee5eb;
+        }
+        
+        .log-warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffeaa7;
+        }
+        
+        .log-error {
+            background-color: #f8d7da;
+            border-left: 4px solid #f5c6cb;
+        }
+        
+        .book-item {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: box-shadow 0.2s;
+        }
+        
+        .book-item:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .book-format {
+            font-size: 0.8em;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+        
+        .format-epub {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .format-pdf {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .format-mobi {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .mobile-nav-link {
+            color: #333;
+            font-weight: 500;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .mobile-nav-link:hover {
+            background-color: #f8f9fa;
+            color: #007bff;
+        }
+        
+        .mobile-nav-link.active {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .offcanvas {
+            top: 56px !important;
+            height: calc(100vh - 56px) !important;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            .main-content {
+                margin-left: 0;
+                margin-top: 70px;
+                padding: 10px;
+            }
+            .container-fluid {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top navigation -->
+    <nav class="navbar navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-book"></i> KindleSource
+            </a>
+            
+            <!-- Mobile menu button -->
+            <button class="navbar-toggler d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div id="status-indicator" class="text-light d-none d-md-block">
+                <span id="status-text">Ready</span>
+                <div id="status-spinner" class="spinner-border spinner-border-sm ms-2" style="display: none;" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Offcanvas Menu -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="mobileMenu">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title">
+                <i class="bi bi-book"></i> KindleSource
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body">
+            <!-- Mobile Status -->
+            <div id="mobile-status-indicator" class="text-center mb-4 p-3 bg-light rounded">
+                <div><strong>Status:</strong> <span id="mobile-status-text">Ready</span></div>
+                <div id="mobile-status-spinner" class="spinner-border spinner-border-sm mt-2" style="display: none;" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+            
+            <!-- Mobile Navigation -->
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link mobile-nav-link" href="/">
+                        <i class="bi bi-house-door"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link mobile-nav-link" href="/manual-search">
+                        <i class="bi bi-search"></i> Manual Search
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link mobile-nav-link" href="/recent-books">
+                        <i class="bi bi-clock-history"></i> Recent Books
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link mobile-nav-link" href="/logs">
+                        <i class="bi bi-journal-text"></i> Logs
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link mobile-nav-link" href="/cache">
+                        <i class="bi bi-database"></i> Cache
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link mobile-nav-link" href="/debug">
+                        <i class="bi bi-bug"></i> Debug Files
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link mobile-nav-link" href="/settings">
+                        <i class="bi bi-gear"></i> Settings
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-md-3 col-lg-2 sidebar bg-light">
+        <div class="sidebar-sticky">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="/">
+                        <i class="bi bi-house-door"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/manual-search">
+                        <i class="bi bi-search"></i> Manual Search
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/recent-books">
+                        <i class="bi bi-clock-history"></i> Recent Books
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/logs">
+                        <i class="bi bi-journal-text"></i> Logs
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/cache">
+                        <i class="bi bi-database"></i> Cache
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/debug">
+                        <i class="bi bi-bug"></i> Debug Files
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/settings">
+                        <i class="bi bi-gear"></i> Settings
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Common JavaScript -->
+    <script>
+        // Update status indicator
+        function updateStatus() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    // Update desktop status
+                    const statusText = document.getElementById('status-text');
+                    const statusSpinner = document.getElementById('status-spinner');
+                    
+                    // Update mobile status
+                    const mobileStatusText = document.getElementById('mobile-status-text');
+                    const mobileStatusSpinner = document.getElementById('mobile-status-spinner');
+                    
+                    const statusMessage = data.is_running ? (data.current_task || 'Running...') : 'Ready';
+                    const showSpinner = data.is_running;
+                    
+                    if (statusText) {
+                        statusText.textContent = statusMessage;
+                        statusSpinner.style.display = showSpinner ? 'inline-block' : 'none';
+                    }
+                    
+                    if (mobileStatusText) {
+                        mobileStatusText.textContent = statusMessage;
+                        mobileStatusSpinner.style.display = showSpinner ? 'inline-block' : 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching status:', error);
+                });
+        }
+        
+        // Cache browser user agent for better Amazon compatibility
+        function cacheUserAgent() {
+            // First check if we need to update the user agent
+            fetch('/api/get-user-agent-status')
+                .then(response => response.json())
+                .then(data => {
+                    // If we don't have a cached user agent or it's stale, update it
+                    if (!data.has_cached_user_agent || !data.is_fresh) {
+                        const userAgent = navigator.userAgent;
+                        
+                        fetch('/api/update-user-agent', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                user_agent: userAgent
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(result => {
+                            if (result.success) {
+                                console.log('User agent cached for better Amazon compatibility');
+                            } else {
+                                console.warn('Failed to cache user agent:', result.error);
+                            }
+                        })
+                        .catch(error => {
+                            console.warn('Error caching user agent:', error);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.warn('Error checking user agent status:', error);
+                });
+        }
+        
+        // Update status every 2 seconds
+        setInterval(updateStatus, 2000);
+        updateStatus(); // Initial call
+        
+        // Cache browser user agent for better Amazon compatibility
+        cacheUserAgent();
+        
+        // Set active navigation link
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPath = window.location.pathname;
+            
+            // Set active for desktop sidebar
+            const navLinks = document.querySelectorAll('.sidebar .nav-link');
+            navLinks.forEach(link => {
+                if (link.getAttribute('href') === currentPath) {
+                    link.classList.add('active');
+                }
+            });
+            
+            // Set active for mobile navigation
+            const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
+            mobileNavLinks.forEach(link => {
+                if (link.getAttribute('href') === currentPath) {
+                    link.classList.add('active');
+                }
+            });
+            
+            // Close mobile menu when a link is clicked
+            mobileNavLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('mobileMenu'));
+                    if (offcanvas) {
+                        offcanvas.hide();
+                    }
+                });
+            });
+        });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html> 

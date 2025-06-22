@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+
+{% block title %}Manual Search - KindleSource{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h2 mb-4">
+                <i class="bi bi-search"></i> Manual Search
+            </h1>
+            <p class="text-muted mb-4">Search for and download individual books from LibGen</p>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-book"></i> Search for Books
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="search-form">
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label for="search-query" class="form-label">Search Query</label>
+                                <input type="text" class="form-control" id="search-query" 
+                                       placeholder="Enter book title, author, or ISBN..." 
+                                       required>
+                                <div class="form-text">
+                                    You can search by title, author, ISBN, or any combination. 
+                                    Examples: "Atomic Habits", "James Clear", "978-0735211308"
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100" id="search-btn">
+                                    <i class="bi bi-search"></i> Search & Download
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Results -->
+    <div class="row" id="results-section" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-list-check"></i> Search Results
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="search-results">
+                        <!-- Results will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search History -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-clock-history"></i> Recent Searches
+                    </h5>
+                    <button class="btn btn-sm btn-outline-secondary" id="clear-history-btn">
+                        <i class="bi bi-trash"></i> Clear History
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="search-history">
+                        <div class="text-center text-muted py-3">
+                            <i class="bi bi-clock"></i>
+                            <p class="mt-2 mb-0">No recent searches</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tips -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-lightbulb"></i> Search Tips
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="bi bi-check-circle text-success"></i> Best Practices:</h6>
+                            <ul class="list-unstyled">
+                                <li>• Use the exact book title for better results</li>
+                                <li>• Include the author's name when possible</li>
+                                <li>• Try searching with just the main title (without subtitle)</li>
+                                <li>• ISBN numbers usually give the most accurate results</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="bi bi-info-circle text-info"></i> What Happens:</h6>
+                            <ul class="list-unstyled">
+                                <li>• Searches LibGen for matching books</li>
+                                <li>• Downloads the best match in EPUB format</li>
+                                <li>• Automatically sends to your Kindle</li>
+                                <li>• Adds to your recent books list</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search Progress Modal -->
+<div class="modal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-search"></i> Searching...
+                </h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p id="search-status">Searching for books...</p>
+                <div class="progress">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Result Modal -->
+<div class="modal fade" id="resultModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="result-title">Search Result</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="result-content">
+                    <!-- Result content will be inserted here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="search-again-btn">Search Again</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let searchHistory = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+    
+    // Load search history on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSearchHistory();
+    });
+    
+    // Handle form submission
+    document.getElementById('search-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const query = document.getElementById('search-query').value.trim();
+        if (!query) {
+            alert('Please enter a search query');
+            return;
+        }
+        
+        performSearch(query);
+    });
+    
+    // Perform search
+    function performSearch(query) {
+        // Add to search history
+        addToHistory(query);
+        
+        // Show search modal
+        const searchModal = new bootstrap.Modal(document.getElementById('searchModal'));
+        searchModal.show();
+        
+        // Update search status
+        document.getElementById('search-status').textContent = 'Searching LibGen...';
+        
+        // Make API call
+        fetch('/api/manual-search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query: query })
+        })
+        .then(response => response.json())
+        .then(data => {
+            searchModal.hide();
+            showResult(data, query);
+        })
+        .catch(error => {
+            searchModal.hide();
+            showResult({ 
+                success: false, 
+                error: 'Network error: ' + error.message 
+            }, query);
+        });
+    }
+    
+    // Show search result
+    function showResult(data, query) {
+        const resultModal = new bootstrap.Modal(document.getElementById('resultModal'));
+        const resultTitle = document.getElementById('result-title');
+        const resultContent = document.getElementById('result-content');
+        
+        if (data.success) {
+            resultTitle.innerHTML = '<i class="bi bi-check-circle text-success"></i> Success!';
+            resultContent.innerHTML = `
+                <div class="alert alert-success">
+                    <h6><i class="bi bi-download"></i> Book Downloaded Successfully!</h6>
+                    <hr>
+                    <p><strong>Title:</strong> ${data.title}</p>
+                    <p><strong>Author:</strong> ${data.author}</p>
+                    <p><strong>Format:</strong> <span class="badge bg-success">${data.format}</span></p>
+                    ${data.warning ? `<div class="alert alert-warning mt-2"><small>${data.warning}</small></div>` : ''}
+                </div>
+                <p class="text-muted">
+                    <i class="bi bi-info-circle"></i> 
+                    The book has been downloaded and ${data.warning ? 'is available in your downloads folder' : 'sent to your Kindle'}.
+                </p>
+            `;
+        } else {
+            resultTitle.innerHTML = '<i class="bi bi-x-circle text-danger"></i> Search Failed';
+            resultContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6><i class="bi bi-exclamation-triangle"></i> No Results Found</h6>
+                    <p>${data.error || 'Could not find any books matching your search.'}</p>
+                </div>
+                <div class="mt-3">
+                    <h6>Try these suggestions:</h6>
+                    <ul>
+                        <li>Check the spelling of the title or author</li>
+                        <li>Try searching with just the main title</li>
+                        <li>Search by author name only</li>
+                        <li>Use an ISBN if available</li>
+                    </ul>
+                </div>
+            `;
+        }
+        
+        resultModal.show();
+    }
+    
+    // Add to search history
+    function addToHistory(query) {
+        const timestamp = new Date().toISOString();
+        const historyItem = {
+            query: query,
+            timestamp: timestamp
+        };
+        
+        // Remove if already exists
+        searchHistory = searchHistory.filter(item => item.query !== query);
+        
+        // Add to beginning
+        searchHistory.unshift(historyItem);
+        
+        // Keep only last 10 searches
+        searchHistory = searchHistory.slice(0, 10);
+        
+        // Save to localStorage
+        localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+        
+        // Update display
+        updateSearchHistory();
+    }
+    
+    // Update search history display
+    function updateSearchHistory() {
+        const historyContainer = document.getElementById('search-history');
+        
+        if (searchHistory.length === 0) {
+            historyContainer.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-clock"></i>
+                    <p class="mt-2 mb-0">No recent searches</p>
+                </div>
+            `;
+            return;
+        }
+        
+        historyContainer.innerHTML = searchHistory.map(item => `
+            <div class="d-flex justify-content-between align-items-center p-2 border-bottom history-item">
+                <div class="flex-grow-1">
+                    <button class="btn btn-link text-start p-0 text-decoration-none search-history-btn" 
+                            data-query="${item.query}">
+                        <i class="bi bi-clock-history me-2"></i>
+                        ${item.query}
+                    </button>
+                </div>
+                <small class="text-muted">
+                    ${new Date(item.timestamp).toLocaleString()}
+                </small>
+            </div>
+        `).join('');
+        
+        // Add click handlers for history items
+        document.querySelectorAll('.search-history-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const query = this.getAttribute('data-query');
+                document.getElementById('search-query').value = query;
+                performSearch(query);
+            });
+        });
+    }
+    
+    // Clear search history
+    document.getElementById('clear-history-btn').addEventListener('click', function() {
+        if (confirm('Are you sure you want to clear your search history?')) {
+            searchHistory = [];
+            localStorage.removeItem('searchHistory');
+            updateSearchHistory();
+        }
+    });
+    
+    // Search again button
+    document.getElementById('search-again-btn').addEventListener('click', function() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('resultModal'));
+        modal.hide();
+        document.getElementById('search-query').focus();
+    });
+    
+    // Focus on search input when page loads
+    document.getElementById('search-query').focus();
+</script>
+{% endblock %} 

@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Debug Files - KindleSource{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h2 mb-0">
+                        <i class="bi bi-bug"></i> Debug Files
+                    </h1>
+                    <p class="text-muted mb-0">View debugging HTML files generated during scraping</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-warning" id="clear-debug-btn">
+                        <i class="bi bi-trash"></i> Clear All
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="window.location.reload()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug Files Info -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-info-circle"></i> About Debug Files
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="bi bi-file-earmark-code text-primary"></i> File Types:</h6>
+                            <ul class="list-unstyled">
+                                <li>• <strong>wishlist_debug.html</strong> - Amazon wishlist page content</li>
+                                <li>• <strong>libgen_response.html</strong> - LibGen search results</li>
+                                <li>• <strong>mirror_response.html</strong> - LibGen download page</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="bi bi-gear text-success"></i> Usage:</h6>
+                            <ul class="list-unstyled">
+                                <li>• Click file names to view in new tab</li>
+                                <li>• Files are saved during scraping operations</li>
+                                <li>• Useful for troubleshooting scraping issues</li>
+                                <li>• Files are automatically cleaned up periodically</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug Files List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-list-ul"></i> Debug Files
+                    </h5>
+                    <small class="text-muted">
+                        Found {{ debug_files|length }} files
+                    </small>
+                </div>
+                <div class="card-body">
+                    {% if debug_files %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th><i class="bi bi-file-earmark"></i> File Name</th>
+                                        <th><i class="bi bi-hdd"></i> Size</th>
+                                        <th><i class="bi bi-calendar"></i> Last Modified</th>
+                                        <th><i class="bi bi-gear"></i> Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for file in debug_files %}
+                                        <tr>
+                                            <td>
+                                                <a href="{{ file.url }}" target="_blank" class="text-decoration-none">
+                                                    <i class="bi bi-file-earmark-code text-primary me-2"></i>
+                                                    {{ file.name }}
+                                                    <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.8em;"></i>
+                                                </a>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-light text-dark">{{ file.size }}</span>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">{{ file.modified }}</small>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a href="{{ file.url }}" target="_blank" class="btn btn-sm btn-outline-primary" title="View in new tab">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                    <a href="{{ file.url }}" download="{{ file.name }}" class="btn btn-sm btn-outline-secondary" title="Download">
+                                                        <i class="bi bi-download"></i>
+                                                    </a>
+                                                    <button class="btn btn-sm btn-outline-info copy-url-btn" 
+                                                            data-url="{{ request.url_root.rstrip('/') }}{{ file.url }}"
+                                                            title="Copy URL">
+                                                        <i class="bi bi-clipboard"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-file-earmark-x" style="font-size: 4rem;"></i>
+                            <h4 class="mt-3">No Debug Files Found</h4>
+                            <p class="mb-4">Debug files will appear here when scraping operations are performed.</p>
+                            <div class="d-flex justify-content-center gap-2">
+                                <a href="/manual-search" class="btn btn-primary">
+                                    <i class="bi bi-search"></i> Perform Manual Search
+                                </a>
+                                <a href="/" class="btn btn-outline-primary">
+                                    <i class="bi bi-download"></i> Crawl Wishlist
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to clear all debug files? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="confirm-clear" class="btn btn-danger">Clear All Files</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Toast -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="notification-toast" class="toast" role="alert">
+        <div class="toast-header">
+            <i class="bi bi-info-circle-fill text-primary me-2"></i>
+            <strong class="me-auto">Notification</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="toast-message">
+            <!-- Message will be inserted here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Clear debug files button
+        document.getElementById('clear-debug-btn').addEventListener('click', function() {
+            const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+            modal.show();
+        });
+        
+        // Confirm clear action
+        document.getElementById('confirm-clear').addEventListener('click', function() {
+            fetch('/debug/clear', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(`Cleared ${data.cleared_count} debug files!`);
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showNotification('Failed to clear debug files', 'error');
+                }
+                bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+            })
+            .catch(error => {
+                showNotification('Error clearing debug files: ' + error.message, 'error');
+                bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+            });
+        });
+        
+        // Copy URL buttons
+        document.querySelectorAll('.copy-url-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const url = this.getAttribute('data-url');
+                copyToClipboard(url);
+            });
+        });
+    });
+    
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            showNotification('URL copied to clipboard!');
+        }).catch(() => {
+            showNotification('Failed to copy to clipboard', 'error');
+        });
+    }
+    
+    function showNotification(message, type = 'info') {
+        const toast = document.getElementById('notification-toast');
+        const toastMessage = document.getElementById('toast-message');
+        const toastIcon = toast.querySelector('.toast-header i');
+        
+        toastMessage.textContent = message;
+        toastIcon.className = `bi bi-${type === 'error' ? 'exclamation-triangle-fill text-danger' : 'info-circle-fill text-primary'} me-2`;
+        
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+    }
+</script>
+{% endblock %} 

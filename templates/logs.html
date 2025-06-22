@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - KindleSource{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h2 mb-4">
+                <i class="bi bi-journal-text"></i> Application Logs
+            </h1>
+            <p class="text-muted mb-4">View real-time application logs with filtering and search</p>
+        </div>
+    </div>
+
+    <!-- Log Controls -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <label for="log-level-filter" class="form-label">Filter by Level:</label>
+                            <select class="form-select" id="log-level-filter">
+                                <option value="">All Levels</option>
+                                <option value="info">Info</option>
+                                <option value="warning">Warning</option>
+                                <option value="error">Error</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="log-search" class="form-label">Search Logs:</label>
+                            <input type="text" class="form-control" id="log-search" 
+                                   placeholder="Search log messages...">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Auto Refresh:</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="auto-refresh" checked>
+                                <label class="form-check-label" for="auto-refresh">
+                                    Auto refresh (5s)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-info" id="total-logs">{{ logs|length }}</h5>
+                    <p class="card-text">Total Logs</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-success" id="info-logs">
+                        {{ logs|selectattr('level', 'equalto', 'info')|list|length }}
+                    </h5>
+                    <p class="card-text">Info</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-warning" id="warning-logs">
+                        {{ logs|selectattr('level', 'equalto', 'warning')|list|length }}
+                    </h5>
+                    <p class="card-text">Warnings</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-danger" id="error-logs">
+                        {{ logs|selectattr('level', 'equalto', 'error')|list|length }}
+                    </h5>
+                    <p class="card-text">Errors</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Entries -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-list-ul"></i> Log Entries
+                    </h5>
+                    <small class="text-muted" id="log-count">
+                        Showing {{ logs|length }} entries
+                    </small>
+                </div>
+                <div class="card-body p-0">
+                    <div id="log-container" style="max-height: 600px; overflow-y: auto;">
+                        {% if logs %}
+                            {% for log in logs|reverse %}
+                                <div class="log-entry log-{{ log.level }} p-3 border-bottom" 
+                                     data-level="{{ log.level }}" 
+                                     data-message="{{ log.message }}"
+                                     data-timestamp="{{ log.timestamp }}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center mb-1">
+                                                {% if log.level == 'error' %}
+                                                    <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                                                {% elif log.level == 'warning' %}
+                                                    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+                                                {% else %}
+                                                    <i class="bi bi-info-circle-fill text-info me-2"></i>
+                                                {% endif %}
+                                                <span class="badge bg-{{ 'danger' if log.level == 'error' else 'warning' if log.level == 'warning' else 'info' }}">
+                                                    {{ log.level.upper() }}
+                                                </span>
+                                                <small class="text-muted ms-2">
+                                                    {{ log.timestamp[:19] }}
+                                                </small>
+                                            </div>
+                                            <p class="mb-0 log-message">{{ log.message }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center text-muted py-5" id="no-logs-message">
+                                <i class="bi bi-journal" style="font-size: 3rem;"></i>
+                                <h5 class="mt-3">No Logs Available</h5>
+                                <p class="mb-0">Application logs will appear here as they are generated.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let autoRefreshInterval;
+    let allLogs = {{ logs|tojson }};
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        setupEventListeners();
+        startAutoRefresh();
+        filterLogs();
+    });
+    
+    function setupEventListeners() {
+        // Filter controls
+        document.getElementById('log-level-filter').addEventListener('change', filterLogs);
+        document.getElementById('log-search').addEventListener('input', filterLogs);
+        
+        // Auto refresh toggle
+        document.getElementById('auto-refresh').addEventListener('change', function() {
+            if (this.checked) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        });
+    }
+    
+    function refreshLogs() {
+        fetch('/status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.logs) {
+                    allLogs = data.logs;
+                    updateLogDisplay();
+                    updateStatistics();
+                }
+            })
+            .catch(error => {
+                console.error('Error refreshing logs:', error);
+            });
+    }
+    
+    function filterLogs() {
+        const levelFilter = document.getElementById('log-level-filter').value;
+        const searchQuery = document.getElementById('log-search').value.toLowerCase();
+        
+        let filteredLogs = allLogs;
+        
+        // Filter by level
+        if (levelFilter) {
+            filteredLogs = filteredLogs.filter(log => log.level === levelFilter);
+        }
+        
+        // Filter by search query
+        if (searchQuery) {
+            filteredLogs = filteredLogs.filter(log => 
+                log.message.toLowerCase().includes(searchQuery)
+            );
+        }
+        
+        displayFilteredLogs(filteredLogs);
+    }
+    
+    function displayFilteredLogs(logs) {
+        const container = document.getElementById('log-container');
+        const logCount = document.getElementById('log-count');
+        
+        logCount.textContent = `Showing ${logs.length} entries`;
+        
+        if (logs.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-search" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3">No Matching Logs</h5>
+                    <p class="mb-0">Try adjusting your filters or search terms.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Sort logs by timestamp (newest first)
+        const sortedLogs = logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        container.innerHTML = sortedLogs.map(log => {
+            const levelIcon = log.level === 'error' ? 'exclamation-triangle-fill text-danger' :
+                             log.level === 'warning' ? 'exclamation-triangle-fill text-warning' :
+                             'info-circle-fill text-info';
+            
+            const levelBadge = log.level === 'error' ? 'danger' :
+                              log.level === 'warning' ? 'warning' : 'info';
+            
+            return `
+                <div class="log-entry log-${log.level} p-3 border-bottom" 
+                     data-level="${log.level}" 
+                     data-message="${log.message}"
+                     data-timestamp="${log.timestamp}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="bi bi-${levelIcon} me-2"></i>
+                                <span class="badge bg-${levelBadge}">
+                                    ${log.level.toUpperCase()}
+                                </span>
+                                <small class="text-muted ms-2">
+                                    ${log.timestamp.substring(0, 19)}
+                                </small>
+                            </div>
+                            <p class="mb-0 log-message">${log.message}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    function updateLogDisplay() {
+        filterLogs(); // This will update the display with current filters
+    }
+    
+    function updateStatistics() {
+        const totalLogs = allLogs.length;
+        const infoLogs = allLogs.filter(log => log.level === 'info').length;
+        const warningLogs = allLogs.filter(log => log.level === 'warning').length;
+        const errorLogs = allLogs.filter(log => log.level === 'error').length;
+        
+        document.getElementById('total-logs').textContent = totalLogs;
+        document.getElementById('info-logs').textContent = infoLogs;
+        document.getElementById('warning-logs').textContent = warningLogs;
+        document.getElementById('error-logs').textContent = errorLogs;
+    }
+    
+    function startAutoRefresh() {
+        stopAutoRefresh(); // Clear any existing interval
+        autoRefreshInterval = setInterval(refreshLogs, 5000);
+    }
+    
+    function stopAutoRefresh() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+    }
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        stopAutoRefresh();
+    });
+</script>
+{% endblock %}
