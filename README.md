@@ -141,6 +141,10 @@ If you want to log the cron job output:
 0 */12 * * * curl -s -X POST http://localhost:5001/api/crawl-wishlist >> /path/to/your/project/logs/cron.log 2>&1
 ```
 
+### 4. Check if the server is running 
+```bash
+ps aux | grep run_flask.py
+```
 
 **Note**: Make sure your Flask app is running on localhost:5001 when the cron job executes, otherwise the curl will fail silently. The Flask app handles all the detailed logging and error handling internally.
 
