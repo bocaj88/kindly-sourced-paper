@@ -290,6 +290,14 @@ If you encounter issues:
 2. Review the application logs
 3. Create a GitHub issue with details
 
+
+## TODO 
+There's alwasy more to be done...
+- [ ] Allow us to update the polling (Like every 12 hours via the app) (instead of using CRON) (And update the readme)
+- [ ] Setup misses are not obvious when I need to authenticate/upload to kindle... it just fails... and I have to look ... Both auth and Wishlist being empty are not obvious failures...
+
 ---
 
 *Remember: This tool is for educational purposes only. Always respect copyright laws and terms of service.*
+
+
