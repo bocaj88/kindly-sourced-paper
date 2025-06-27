@@ -84,9 +84,9 @@ def get_wishlist_books(wishlist_url):
         resp.raise_for_status()
         
         # Print the first 1000 characters of the HTML for debugging
-        logger.debug("\n--- HTML Preview ---")
-        logger.debug(resp.text[:1000])
-        logger.debug("--- END HTML Preview ---\n")
+        # logger.debug("\n--- HTML Preview ---")
+        # logger.debug(resp.text[:1000])
+        # logger.debug("--- END HTML Preview ---\n")
         
         # Debug: Print response status and headers
         logger.info(f"Response Status: {resp.status_code}")
@@ -103,10 +103,6 @@ def get_wishlist_books(wishlist_url):
         # Debug: Print page title
         logger.info(f"Page Title: {soup.title.string if soup.title else 'No title'}")
         
-        # Debug: Print all divs with data-itemid
-        logger.info("Looking for wishlist items...")
-        items = soup.find_all('div', {'data-itemid': True})
-        logger.info(f"Found {len(items)} items with data-itemid")
         
         # Debug: Print all links that might be book links
         logger.info("Looking for book links...")
@@ -125,12 +121,18 @@ def get_wishlist_books(wishlist_url):
                 continue
             seen_urls.add(href)
             logger.debug(f"Link: {href}")
-            logger.debug(f"Text: {link.get_text(strip=True)}")
-            # Get detailed book information using the link
-            title, author, isbn = get_book_details_from_url(href)
+            logger.debug(f"Text: {link.get_text(strip=True)}")           
+            # Get detailed book information using the wishlist page.
+            title, author, isbn = get_book_details_from_wishlist(href, soup)
+            if not title:
+                # If it fails try the URL directly... this often times fails headless. 
+                title, author, isbn = get_book_details_from_url(href)                
             logger.debug(f"  Title: {title}")
             logger.debug(f"  Author: {author}")
             logger.debug(f"  ISBN: {isbn}")
+            if not title:
+                logger.error(f"  No title found for {href}")
+                continue
             # Save to the list if title and author are found
             if title and author:
                 books.append({
@@ -215,6 +217,109 @@ def get_book_details_from_url(url):
     except Exception as e:
         logger.error(f"Error getting book details: {str(e)}")
         return None, None, None
+
+def get_book_details_from_wishlist(url, soup):
+    """Get book details from the wishlist page."""
+    try:
+        # Extract ASIN from URL (e.g., /dp/B00280LYIC -> B00280LYIC)
+        asin_match = re.search(r'/dp/([A-Z0-9]+)', url)
+        if not asin_match:
+            logger.debug(f"Could not extract ASIN from URL: {url}")
+            return None, None, None
+        
+        asin = asin_match.group(1)
+        logger.debug(f"Looking for ASIN: {asin}")
+        
+        # Find the specific wishlist item container for this ASIN
+        item_container = None
+        
+        # Find all links to this specific ASIN
+        asin_links = soup.find_all('a', href=lambda x: x and f'/dp/{asin}' in x)
+        logger.debug(f"Found {len(asin_links)} links to ASIN {asin}")
+        
+        if not asin_links:
+            logger.debug(f"No links found for ASIN: {asin}")
+            return None, None, None
+        
+        # For each link, find the closest container that has both title and author info
+        for link in asin_links:
+            # Method 1: Look for parent li with awl-item-wrapper (mobile)
+            parent_li = link.find_parent('li', class_=lambda x: x and 'awl-item-wrapper' in x)
+            if parent_li:
+                # Verify this container is specifically for this ASIN by checking if it has title/author
+                title_elem = parent_li.find(['h2', 'h3'], class_=lambda x: x and 'item-title' in x) if parent_li else None
+                byline_elem = parent_li.find('span', id=lambda x: x and 'item-byline' in x) if parent_li else None
+                if title_elem or byline_elem:
+                    item_container = parent_li
+                    logger.debug(f"Found specific container (li): {parent_li.get('id', 'no-id')}")
+                    break
+            
+            # Method 2: Look for parent div structure (desktop)
+            if not item_container:
+                # Walk up to find a div that contains both itemName and item-byline elements
+                current = link.parent
+                while current and current.name != 'body':
+                    if current.name == 'div':
+                        title_elem = current.find(id=lambda x: x and 'itemName' in x)
+                        byline_elem = current.find('span', id=lambda x: x and 'item-byline' in x)
+                        if title_elem and byline_elem:
+                            item_container = current
+                            logger.debug(f"Found specific container (div): {current.get('id', 'no-id')}")
+                            break
+                    current = current.parent
+                    
+                if item_container:
+                    break
+        
+        if not item_container:
+            logger.debug(f"Could not find specific item container for ASIN: {asin}")
+            return None, None, None
+        
+        # Extract title - try multiple approaches for different layouts
+        title = None
+        
+        # Method 1: Look for h3 with item-title class (mobile version)
+        title_elem = item_container.find('h3', class_=lambda x: x and 'item-title' in x)
+        if title_elem:
+            title = title_elem.get_text(strip=True)
+            logger.debug(f"Found title (h3): {title}")
+        
+        # Method 2: Look for element with id containing "itemName" (desktop version)
+        if not title:
+            title_elem = item_container.find(id=lambda x: x and 'itemName' in x)
+            if title_elem:
+                title = title_elem.get_text(strip=True)
+                logger.debug(f"Found title (itemName): {title}")
+        
+        # Method 3: Look for a link with title attribute that matches the ASIN pattern
+        if not title:
+            title_link = item_container.find('a', {'href': lambda x: x and f'/dp/{asin}' in x, 'title': True})
+            if title_link and title_link.get('title'):
+                title = title_link.get('title').strip()
+                logger.debug(f"Found title (link title): {title}")
+        
+        # Extract author from byline span with id containing "item-byline"
+        author = None
+        byline_elem = item_container.find('span', id=lambda x: x and 'item-byline' in x)
+        if byline_elem:
+            byline_text = byline_elem.get_text(strip=True)
+            logger.debug(f"Found byline: {byline_text}")
+            
+            # Extract author from "by [Author Name] (Kindle Edition)" format
+            author_match = re.search(r'by\s+([^(]+)', byline_text)
+            if author_match:
+                author = author_match.group(1).strip()
+                logger.debug(f"Extracted author: {author}")
+        
+        # For now, return None for ISBN since it's not typically shown on wishlist pages
+        isbn = None
+        
+        return title, author, isbn
+        
+    except Exception as e:
+        logger.error(f"Error extracting book details from wishlist: {str(e)}")
+        return None, None, None
+    
 
 def test_specific_url():
     test_url = "https://www.amazon.com/dp/B0CW1J2FDT"
