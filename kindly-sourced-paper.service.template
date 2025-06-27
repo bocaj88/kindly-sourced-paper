@@ -1,0 +1,19 @@
+[Unit]
+Description=Kindly Sourced Paper Flask App
+After=network.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__WORKING_DIR__
+Environment=PATH=__CONDA_ENV_PATH__/bin:__PATH__
+Environment=CONDA_DEFAULT_ENV=__CONDA_ENV_NAME__
+Environment=CONDA_PREFIX=__CONDA_ENV_PATH__
+ExecStart=__CONDA_ENV_PATH__/bin/python __WORKING_DIR__/run_flask.py
+Restart=always
+RestartSec=10
+StandardOutput=append:__WORKING_DIR__/logs/daemon.log
+StandardError=append:__WORKING_DIR__/logs/daemon.log
+
+[Install]
+WantedBy=multi-user.target 

@@ -53,24 +53,39 @@ This is a Flask-based web application that helps you manage your Amazon wishlist
    python setup_playwright.py
    ```
 
-5. **Run the application**:
+5. **Install the system service** (recommended):
    ```bash
-   python run_flask.py
+   # Make sure you're in the conda environment
+   conda activate kindle_fetcher
+   
+   # Install the service
+   ./manage_daemon.sh install
    ```
 
-6. **Open your browser** and navigate to: `http://localhost:5001`
+6. **Start the service**:
+   ```bash
+   ./manage_daemon.sh start
+   ```
+
+7. **Open your browser** and navigate to: `http://localhost:5001`
+
+### Alternative: Manual Run (without service)
+If you prefer not to install as a service, you can run manually:
+```bash
+python run_flask.py
+```
 
 ## Getting started notes!
 1. You MUST set your wishlist and it's gotta be public (Don't forget to hit save)
 2. You MUST "Setup your kindle" so we can get your authentication on a real computer with a display
 3. We need a $DISPLAY argument... so headless get's tricky for now... I haven't looked into this yet
-4. The app runs as a system service (daemon) and starts automatically at boot
+4. The app can run as a system service (daemon) and start automatically at boot (after installation)
    ```bash
    # Check if the service is running
-   sudo systemctl status kindly-sourced-paper.service
+   ./manage_daemon.sh status
    
    # If not running, start it
-   sudo systemctl start kindly-sourced-paper.service
+   ./manage_daemon.sh start
    ```
 
 ## 🎯 How to Use
@@ -98,33 +113,53 @@ Key configuration files:
 
 ## 🔄 Running as a System Service (Daemon)
 
-The application is configured to run as a systemd service, which provides better reliability and automatic startup management.
+The application can be configured to run as a systemd service, which provides better reliability and automatic startup management.
 
 ### Service Installation
 
-The service is already installed and configured. Here are the key management commands:
+**First-time setup**: You need to install the service before using it. Make sure you're in your conda environment and run:
+
+```bash
+conda activate kindle_fetcher
+./manage_daemon.sh install
+```
+
+This will:
+- Create a systemd service file customized for your environment
+- Install it to the system
+- Enable automatic startup at boot
+
+### Service Management
+
+Once installed, here are the key management commands:
 
 ```bash
 # Check service status
-sudo systemctl status kindly-sourced-paper.service
+./manage_daemon.sh status
 
 # Start the service
-sudo systemctl start kindly-sourced-paper.service
+./manage_daemon.sh start
 
 # Stop the service
-sudo systemctl stop kindly-sourced-paper.service
+./manage_daemon.sh stop
 
 # Restart the service
-sudo systemctl restart kindly-sourced-paper.service
+./manage_daemon.sh restart
 
-# Enable automatic startup at boot (already enabled)
-sudo systemctl enable kindly-sourced-paper.service
+# Enable automatic startup at boot
+./manage_daemon.sh enable
 
 # Disable automatic startup
-sudo systemctl disable kindly-sourced-paper.service
+./manage_daemon.sh disable
 
 # View service logs
-sudo journalctl -u kindly-sourced-paper.service -f
+./manage_daemon.sh logs
+
+# View daemon.log file
+./manage_daemon.sh daemon-logs
+
+# Uninstall the service (if needed)
+./manage_daemon.sh uninstall
 ```
 
 ### Service Configuration
@@ -226,15 +261,16 @@ Add this line for every 12 hours:
 - Review file naming conventions
 
 **Service/Daemon Issues**:
-- Check service status: `sudo systemctl status kindly-sourced-paper.service`
-- View service logs: `sudo journalctl -u kindly-sourced-paper.service -f`
-- Restart service: `sudo systemctl restart kindly-sourced-paper.service`
-- Check daemon logs: `tail -f logs/daemon.log`
+- First, ensure the service is installed: `./manage_daemon.sh install`
+- Check service status: `./manage_daemon.sh status`
+- View service logs: `./manage_daemon.sh logs`
+- Restart service: `./manage_daemon.sh restart`
+- Check daemon logs: `./manage_daemon.sh daemon-logs`
 
 **Cron Job Issues**:
-- Ensure Flask daemon is running when cron executes
+- Ensure the service is installed and running: `./manage_daemon.sh status`
 - Check `logs/cron.log` for cron-specific errors
-- Verify service is enabled: `sudo systemctl is-enabled kindly-sourced-paper.service`
+- Verify service is enabled: `./manage_daemon.sh status`
 
 ### Debug Mode
 
