@@ -466,20 +466,26 @@ def perform_login(page, email, password):
         signin_btn.click()
         page.wait_for_load_state('domcontentloaded')
         
-        # Wait for and fill email field
-        email_field = page.locator("input[type='email']")
-        email_field.wait_for(state="visible", timeout=10000)
-        email_field.fill(email)
-        print("Email entered")
-        
-        # Click continue button
-        continue_btn = page.locator("#continue")
-        continue_btn.click()
-        page.wait_for_load_state('domcontentloaded')
-        
-        # Wait for and fill password field
+        # Check if we just need password or email too 
         password_field = page.locator("input[type='password']")
-        password_field.wait_for(state="visible", timeout=10000)
+        try:
+            password_field.wait_for(state="visible", timeout=10000)
+        except PlaywrightTimeoutError:
+            # No password field found, so we need to fill email first
+            email_field = page.locator("input[type='email']")
+            email_field.wait_for(state="visible", timeout=10000)
+            email_field.fill(email)
+            print("Email entered")
+                
+            # Click continue button
+            continue_btn = page.locator("#continue")
+            continue_btn.click()
+            page.wait_for_load_state('domcontentloaded')
+        
+            # Wait for and fill password field
+            password_field = page.locator("input[type='password']")
+            password_field.wait_for(state="visible", timeout=10000)
+        
         password_field.fill(password)
         print("Password entered")
         
