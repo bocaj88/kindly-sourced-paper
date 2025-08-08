@@ -481,6 +481,11 @@ def recent_books_page():
     recent_books = get_recent_books()
     return render_template('recent_books.html', recent_books=recent_books)
 
+@app.route('/already-downloaded')
+def already_downloaded_page():
+    """Already downloaded management page"""
+    return render_template('already_downloaded.html')
+
 @app.route('/download/<path:filename>')
 def download_book(filename):
     """Download a book file"""
@@ -799,6 +804,67 @@ def api_populate_downloaded():
     except Exception as e:
         add_log(f"Error populating downloaded list: {e}", 'error')
         return jsonify({'success': False, 'error': str(e)})
+
+# Already Downloaded management APIs
+@app.route('/api/already-downloaded', methods=['GET'])
+def api_get_already_downloaded():
+    """Return the list of already downloaded book titles."""
+    try:
+        titles = sorted(t for t in get_already_downloaded() if t)
+        return jsonify({'success': True, 'count': len(titles), 'titles': titles})
+    except Exception as e:
+        add_log(f"Error reading already downloaded list: {e}", 'error')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/already-downloaded/remove', methods=['POST'])
+def api_remove_already_downloaded():
+    """Remove one or more titles from already_downloaded.txt."""
+    try:
+        data = request.get_json(silent=True) or {}
+        # Support single 'title' or list 'titles'
+        titles = data.get('titles')
+        if titles and isinstance(titles, list):
+            titles_to_remove = [str(t).strip() for t in titles if str(t).strip()]
+        else:
+            title = str(data.get('title', '')).strip()
+            if not title:
+                return jsonify({'success': False, 'error': 'Title is required'}), 400
+            titles_to_remove = [title]
+
+        if not titles_to_remove:
+            return jsonify({'success': False, 'error': 'No valid titles provided'}), 400
+
+        # Read, filter, and write back
+        already_downloaded_file = os.path.join(DOWNLOAD_DIR, 'already_downloaded.txt')
+        # Ensure file exists so open for read won't fail
+        if not os.path.exists(DOWNLOAD_DIR):
+            os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+        if not os.path.exists(already_downloaded_file):
+            with open(already_downloaded_file, 'w', encoding='utf-8') as _:
+                pass
+
+        removed_count = 0
+        with open(already_downloaded_file, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+
+        lowered_set = {t.lower() for t in titles_to_remove}
+        updated_lines = []
+        for line in lines:
+            line_stripped = line.strip()
+            if line_stripped and line_stripped.lower() in lowered_set:
+                removed_count += 1
+                continue
+            updated_lines.append(line)
+
+        with open(already_downloaded_file, 'w', encoding='utf-8') as f:
+            f.writelines(updated_lines)
+
+        add_log(f"Removed {removed_count} entr(ies) from already_downloaded.txt")
+        return jsonify({'success': True, 'removed': removed_count})
+    except Exception as e:
+        add_log(f"Error removing from already downloaded list: {e}", 'error')
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # Initialize cache on startup
 load_cache()

@@ -263,6 +263,27 @@
                 <div class="form-text mt-2">
                     This will scan your downloads folder and add any existing books to the "already downloaded" list to prevent re-downloading them.
                 </div>
+
+                    <hr>
+                    <div class="setting-label">
+                        <i class="fas fa-book"></i> Already Downloaded Titles
+                    </div>
+                    <div class="mb-2">
+                        <input id="alreadyDownloadedFilter" type="text" class="form-control" placeholder="Filter titles..." oninput="renderAlreadyDownloaded()">
+                    </div>
+                    <div class="mb-2 d-flex gap-2">
+                        <input id="removeTitleInput" type="text" class="form-control" placeholder="Exact title to remove">
+                        <button type="button" class="btn btn-outline-danger" onclick="removeSingleTitle()">
+                            <i class="fas fa-trash"></i> Remove Title
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" onclick="removeSelectedTitles()" id="removeSelectedBtn" disabled>
+                            <i class="fas fa-trash"></i> Remove Selected
+                        </button>
+                    </div>
+                    <div id="alreadyDownloadedContainer" class="mt-2" style="max-height: 280px; overflow:auto; border: 1px solid #e0e0e0; border-radius: 6px;">
+                        <div class="p-3 text-muted">Loading...</div>
+                    </div>
+                    <div class="form-text mt-2">Click to select multiple. Use the trash buttons above to remove.</div>
             </div>
 
             <!-- Export/Import Section -->
@@ -292,6 +313,7 @@ let currentSettings = {};
 document.addEventListener('DOMContentLoaded', function() {
     loadSettings();
     checkUserAgentStatus();
+    loadAlreadyDownloaded();
 });
 
 function loadSettings() {
@@ -646,6 +668,115 @@ function populateAlreadyDownloaded() {
     .catch(error => {
         showAlert('Error populating already downloaded list: ' + error.message, 'danger');
     });
+}
+
+// Already downloaded management
+let alreadyDownloadedTitles = [];
+let selectedTitleSet = new Set();
+
+function loadAlreadyDownloaded() {
+    const container = document.getElementById('alreadyDownloadedContainer');
+    container.innerHTML = '<div class="p-3 text-muted">Loading...</div>';
+    fetch('/api/already-downloaded')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                container.innerHTML = `<div class="p-3 text-danger">Failed to load: ${data.error || 'Unknown error'}</div>`;
+                return;
+            }
+            alreadyDownloadedTitles = data.titles || [];
+            selectedTitleSet.clear();
+            renderAlreadyDownloaded();
+        })
+        .catch(err => {
+            container.innerHTML = `<div class="p-3 text-danger">Error: ${err.message}</div>`;
+        });
+}
+
+function renderAlreadyDownloaded() {
+    const filter = (document.getElementById('alreadyDownloadedFilter').value || '').toLowerCase();
+    const container = document.getElementById('alreadyDownloadedContainer');
+    const filtered = alreadyDownloadedTitles.filter(t => t.toLowerCase().includes(filter));
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="p-3 text-muted">No titles</div>';
+        document.getElementById('removeSelectedBtn').disabled = true;
+        return;
+    }
+    const list = document.createElement('div');
+    list.className = 'list-group list-group-flush';
+    filtered.forEach(title => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+        item.textContent = title;
+        item.onclick = () => toggleSelectTitle(title, item);
+        if (selectedTitleSet.has(title)) {
+            item.classList.add('active');
+        }
+        list.appendChild(item);
+    });
+    container.innerHTML = '';
+    container.appendChild(list);
+    document.getElementById('removeSelectedBtn').disabled = selectedTitleSet.size === 0;
+}
+
+function toggleSelectTitle(title, element) {
+    if (selectedTitleSet.has(title)) {
+        selectedTitleSet.delete(title);
+        element.classList.remove('active');
+    } else {
+        selectedTitleSet.add(title);
+        element.classList.add('active');
+    }
+    document.getElementById('removeSelectedBtn').disabled = selectedTitleSet.size === 0;
+}
+
+function removeSelectedTitles() {
+    if (selectedTitleSet.size === 0) return;
+    if (!confirm(`Remove ${selectedTitleSet.size} selected title(s)?`)) return;
+    const titles = Array.from(selectedTitleSet);
+    fetch('/api/already-downloaded/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titles })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(`Removed ${data.removed} title(s)`, 'success');
+            // Update local list
+            const removeSet = new Set(titles.map(t => t.toLowerCase()));
+            alreadyDownloadedTitles = alreadyDownloadedTitles.filter(t => !removeSet.has(t.toLowerCase()));
+            selectedTitleSet.clear();
+            renderAlreadyDownloaded();
+        } else {
+            showAlert('Failed to remove: ' + (data.error || 'Unknown error'), 'danger');
+        }
+    })
+    .catch(err => showAlert('Error: ' + err.message, 'danger'));
+}
+
+function removeSingleTitle() {
+    const input = document.getElementById('removeTitleInput');
+    const title = (input.value || '').trim();
+    if (!title) return;
+    fetch('/api/already-downloaded/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(`Removed ${data.removed} title(s)`, 'success');
+            alreadyDownloadedTitles = alreadyDownloadedTitles.filter(t => t.toLowerCase() !== title.toLowerCase());
+            input.value = '';
+            renderAlreadyDownloaded();
+        } else {
+            showAlert('Failed to remove: ' + (data.error || 'Unknown error'), 'danger');
+        }
+    })
+    .catch(err => showAlert('Error: ' + err.message, 'danger'));
 }
 
 function togglePasswordVisibility(fieldId) {
