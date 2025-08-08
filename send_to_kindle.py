@@ -6,15 +6,16 @@ import asyncio
 from pathlib import Path
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 import logger
+import settings
 
 
 
 SEND_TO_KINDLE_URL = "https://www.amazon.com/sendtokindle"
 COOKIES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kindle_cookies.json")
 
-# There is an auto login feature that does work but is not very secure so we are not putting it in the config.py file
-AMAZON_EMAIL = None
-AMAZON_PASSWORD = None
+def get_amazon_credentials():
+    """Get Amazon credentials from settings"""
+    return settings.get_amazon_credentials()
 
 def send_epub_to_kindle(epub_path, force_reauth=False):
     """
@@ -70,13 +71,95 @@ def send_epub_to_kindle(epub_path, force_reauth=False):
                 
                 # Verify session is still valid
                 if not is_session_valid(page):
-                    logger.error("Saved session is no longer valid - re-authentication required")
-                    logger.info("Please run setup_kindle_auth() again to refresh your session")
-                    return False
+                    logger.error("Saved session is no longer valid - attempting automatic re-authentication")
+                    
+                    # Try automatic re-authentication with stored credentials
+                    amazon_email, amazon_password = get_amazon_credentials()
+                    if amazon_email and amazon_password:
+                        logger.info("Found stored credentials, attempting automatic login...")
+                        # Navigate to Send to Kindle page to start fresh
+                        page.goto(SEND_TO_KINDLE_URL)
+                        page.wait_for_load_state('domcontentloaded')
+                        
+                        # Look for sign in button and attempt login
+                        try:
+                            signin_btn = page.locator("[id*='sign-in-button']")
+                            if signin_btn.count() > 0:
+                                success = perform_login(page, amazon_email, amazon_password)
+                                if success:
+                                    # Save the new session data
+                                    cookies = context.cookies()
+                                    session_data = {
+                                        'cookies': cookies,
+                                        'current_url': page.url,
+                                        'local_storage': {},
+                                        'session_storage': {},
+                                        'timestamp': time.time()
+                                    }
+                                    try:
+                                        with open(COOKIES_FILE, 'w') as f:
+                                            json.dump(session_data, f, indent=2)
+                                        logger.info("New session data saved successfully")
+                                    except Exception as e:
+                                        logger.warning(f"Could not save new session data: {e}")
+                                else:
+                                    logger.error("Automatic re-authentication failed")
+                                    return False
+                            else:
+                                logger.error("Sign in button not found")
+                                return False
+                        except Exception as e:
+                            logger.error(f"Error during automatic re-authentication: {e}")
+                            return False
+                    else:
+                        logger.error("No stored credentials available for automatic re-authentication")
+                        logger.info("Please run setup_kindle_auth() again or configure credentials in Settings")
+                        return False
             else:
                 logger.error("No valid session data available")
-                logger.info("Please run setup_kindle_auth() first to authenticate")
-                return False
+                
+                # Try automatic authentication with stored credentials
+                amazon_email, amazon_password = get_amazon_credentials()
+                if amazon_email and amazon_password:
+                    logger.info("No saved session found, but found stored credentials. Attempting automatic login...")
+                    # Navigate to Send to Kindle page
+                    page.goto(SEND_TO_KINDLE_URL)
+                    page.wait_for_load_state('domcontentloaded')
+                    
+                    # Look for sign in button and attempt login
+                    try:
+                        signin_btn = page.locator("[id*='sign-in-button']")
+                        if signin_btn.count() > 0:
+                            success = perform_login(page, amazon_email, amazon_password)
+                            if success:
+                                # Save the new session data
+                                cookies = context.cookies()
+                                session_data = {
+                                    'cookies': cookies,
+                                    'current_url': page.url,
+                                    'local_storage': {},
+                                    'session_storage': {},
+                                    'timestamp': time.time()
+                                }
+                                try:
+                                    with open(COOKIES_FILE, 'w') as f:
+                                        json.dump(session_data, f, indent=2)
+                                    logger.info("New session data saved successfully")
+                                except Exception as e:
+                                    logger.warning(f"Could not save new session data: {e}")
+                            else:
+                                logger.error("Automatic authentication failed")
+                                logger.info("Please run setup_kindle_auth() first to authenticate manually")
+                                return False
+                        else:
+                            logger.error("Sign in button not found")
+                            return False
+                    except Exception as e:
+                        logger.error(f"Error during automatic authentication: {e}")
+                        return False
+                else:
+                    logger.info("Please run setup_kindle_auth() first to authenticate or configure credentials in Settings")
+                    return False
             
             # At this point we should be authenticated and on the Send to Kindle page
             logger.info(f"Uploading {epub_path}")
@@ -291,13 +374,14 @@ def setup_kindle_auth():
             signin_btn = page.locator("[id*='sign-in-button']")
             
             # Attempt automatic login if credentials are provided
-            if AMAZON_EMAIL != "your_email@example.com" and AMAZON_PASSWORD != "your_password_here":
-                success = perform_login(page)
+            amazon_email, amazon_password = get_amazon_credentials()
+            if amazon_email and amazon_password:
+                success = perform_login(page, amazon_email, amazon_password)
                 if not success:
                     print("Automatic login failed - please sign in manually")
             else:
                 print("No credentials configured - please sign in manually")
-                print("Update AMAZON_EMAIL and AMAZON_PASSWORD in config.py for automatic login")
+                print("Configure Amazon username and password in the Settings page for automatic login")
             
             # Wait for login to complete
             try:
@@ -372,7 +456,7 @@ def setup_kindle_auth():
                 pass
 
 
-def perform_login(page):
+def perform_login(page, email, password):
     """Automatically perform Amazon login"""
     print("Attempting automatic login...")
     
@@ -385,7 +469,7 @@ def perform_login(page):
         # Wait for and fill email field
         email_field = page.locator("input[type='email']")
         email_field.wait_for(state="visible", timeout=10000)
-        email_field.fill(AMAZON_EMAIL)
+        email_field.fill(email)
         print("Email entered")
         
         # Click continue button
@@ -396,7 +480,7 @@ def perform_login(page):
         # Wait for and fill password field
         password_field = page.locator("input[type='password']")
         password_field.wait_for(state="visible", timeout=10000)
-        password_field.fill(AMAZON_PASSWORD)
+        password_field.fill(password)
         print("Password entered")
         
         # Click sign in button

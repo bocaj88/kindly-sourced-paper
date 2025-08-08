@@ -138,6 +138,50 @@
                     </div>
                 </div>
 
+                <!-- Amazon Authentication Settings -->
+                <div class="setting-group">
+                    <div class="setting-label">
+                        <i class="fas fa-key"></i> Amazon Authentication
+                    </div>
+                    <div class="setting-description">
+                        Configure your Amazon credentials for automatic sign-in when setting up Kindle authentication.
+                        These credentials are stored locally and used to automate the login process.
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="amazon_username" class="form-label">Amazon Email/Username</label>
+                            <input type="email" class="form-control" id="amazon_username" name="amazon_username" 
+                                   placeholder="your.email@example.com">
+                            <small class="form-text text-muted">Your Amazon account email address</small>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="amazon_password" class="form-label">Amazon Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="amazon_password" name="amazon_password" 
+                                       placeholder="Enter your Amazon password">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('amazon_password')">
+                                    <i class="fas fa-eye" id="amazon_password_toggle_icon"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">Your Amazon account password</small>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3" role="alert">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Security Note:</strong> Your credentials are stored locally in your settings file and are only used to automate the Amazon login process. 
+                        Leave these fields empty if you prefer to sign in manually each time.
+                    </div>
+                    
+                    <div class="alert alert-warning mt-2" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Two-Factor Authentication:</strong> If you have 2FA enabled on your Amazon account, 
+                        you'll still need to complete the 2FA step manually even with credentials configured.
+                    </div>
+                </div>
+
                 <!-- Notification Settings -->
                 <div class="setting-group">
                     <div class="setting-label">
@@ -271,6 +315,8 @@ function populateForm(settings) {
     document.getElementById('notification_phone').value = settings.notification_phone || '';
     document.getElementById('cache_expiry_hours').value = settings.cache_expiry_hours || 24;
     document.getElementById('debug_mode').checked = settings.debug_mode || false;
+    document.getElementById('amazon_username').value = settings.amazon_username || '';
+    document.getElementById('amazon_password').value = settings.amazon_password || '';
     
     // Populate preferred formats
     populateFormats(settings.preferred_formats || ['epub', 'pdf', 'mobi']);
@@ -399,7 +445,9 @@ function saveSettings() {
         download_timeout: parseInt(document.getElementById('download_timeout').value) || 30,
         max_concurrent_downloads: parseInt(document.getElementById('max_concurrent_downloads').value) || 3,
         cache_expiry_hours: parseInt(document.getElementById('cache_expiry_hours').value) || 24,
-        debug_mode: document.getElementById('debug_mode').checked
+        debug_mode: document.getElementById('debug_mode').checked,
+        amazon_username: document.getElementById('amazon_username').value || null,
+        amazon_password: document.getElementById('amazon_password').value || null
     };
     
     fetch('/api/settings', {
@@ -598,6 +646,21 @@ function populateAlreadyDownloaded() {
     .catch(error => {
         showAlert('Error populating already downloaded list: ' + error.message, 'danger');
     });
+}
+
+function togglePasswordVisibility(fieldId) {
+    const passwordField = document.getElementById(fieldId);
+    const toggleIcon = document.getElementById(fieldId + '_toggle_icon');
+    
+    if (passwordField.type === 'password') {
+        passwordField.type = 'text';
+        toggleIcon.classList.remove('fa-eye');
+        toggleIcon.classList.add('fa-eye-slash');
+    } else {
+        passwordField.type = 'password';
+        toggleIcon.classList.remove('fa-eye-slash');
+        toggleIcon.classList.add('fa-eye');
+    }
 }
 </script>
 {% endblock %} 

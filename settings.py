@@ -20,7 +20,9 @@ DEFAULT_SETTINGS = {
     'cache_expiry_hours': 24,
     'debug_mode': False,
     'cached_user_agent': None,
-    'user_agent_last_updated': None
+    'user_agent_last_updated': None,
+    'amazon_username': None,
+    'amazon_password': None
 }
 
 def load_settings() -> Dict[str, Any]:
@@ -140,6 +142,31 @@ def is_user_agent_fresh() -> bool:
     
     # Consider fresh if updated within last 24 hours
     return (time.time() - last_updated) < 86400  # 24 hours in seconds
+
+def get_amazon_username() -> Optional[str]:
+    """Get the Amazon username"""
+    return get_setting('amazon_username')
+
+def set_amazon_username(username: str) -> bool:
+    """Set the Amazon username"""
+    return update_setting('amazon_username', username if username else None)
+
+def get_amazon_password() -> Optional[str]:
+    """Get the Amazon password"""
+    return get_setting('amazon_password')
+
+def set_amazon_password(password: str) -> bool:
+    """Set the Amazon password"""
+    return update_setting('amazon_password', password if password else None)
+
+def get_amazon_credentials() -> tuple[Optional[str], Optional[str]]:
+    """Get both Amazon username and password"""
+    return get_amazon_username(), get_amazon_password()
+
+def has_amazon_credentials() -> bool:
+    """Check if both Amazon username and password are configured"""
+    username, password = get_amazon_credentials()
+    return username is not None and password is not None and username.strip() != '' and password.strip() != ''
 
 # Initialize settings file if it doesn't exist
 if not os.path.exists(SETTINGS_FILE):
