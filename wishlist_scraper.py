@@ -6,6 +6,47 @@ from bs4 import BeautifulSoup
 import re
 import logger
 import settings
+from typing import Optional
+
+def is_captcha_page(soup: BeautifulSoup) -> bool:
+    """Return True if the HTML looks like Amazon's bot-check/captcha page."""
+    html = str(soup).lower()
+    return (
+        'validatecaptcha' in html
+        or 'opfcaptcha.amazon.com' in html
+        or 'continue shopping' in html
+        or 'enter the characters you see below' in html
+    )
+
+def fetch_with_browser(url: str) -> Optional[str]:
+    """Fetch page HTML using a real browser via Playwright as a fallback when Amazon blocks requests.
+
+    Returns HTML string or None on failure.
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception as import_error:
+        logger.error(f"Playwright not available for browser fallback: {import_error}")
+        return None
+
+    try:
+        user_agent = settings.get_cached_user_agent()
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=[
+                '--disable-blink-features=AutomationControlled',
+                '--no-sandbox',
+            ])
+            context = browser.new_context(user_agent=user_agent)
+            page = context.new_page()
+            page.goto(url, wait_until='domcontentloaded', timeout=45000)
+            # Give the wishlist some time to render; Amazon often lazy-loads
+            page.wait_for_timeout(2000)
+            html = page.content()
+            browser.close()
+            return html
+    except Exception as e:
+        logger.error(f"Browser fetch failed: {e}")
+        return None
 
 def get_page_content(url, headers):
     """Fetch and parse a webpage."""
@@ -93,6 +134,13 @@ def get_wishlist_books(wishlist_url):
         logger.info(f"Content Type: {resp.headers.get('content-type', 'unknown')}")
         
         soup = BeautifulSoup(resp.text, 'html.parser')
+        if is_captcha_page(soup):
+            logger.info("Detected Amazon bot-check page. Retrying with headless browser...")
+            html_via_browser = fetch_with_browser(wishlist_url)
+            if html_via_browser:
+                soup = BeautifulSoup(html_via_browser, 'html.parser')
+            else:
+                logger.error("Browser fallback failed or Playwright not installed.")
         # Save the HTML to a file for inspection
         debug_dir = 'static/debug'
         os.makedirs(debug_dir, exist_ok=True)
@@ -105,48 +153,58 @@ def get_wishlist_books(wishlist_url):
         
         
         # Debug: Print all links that might be book links
-        logger.info("Looking for book links...")
-        book_links = soup.find_all('a', href=lambda x: x and 'dp/' in x)
-        logger.info(f"Found {len(book_links)} potential book links")
+        logger.info("Looking for book links and ASINs...")
+        # Collect ASINs from multiple possible link formats and attributes
+        asin_pattern = re.compile(r"/(?:dp|gp/product|gp/aw/d)/([A-Z0-9]{10})")
+        found_asins = set()
+
+        # 1) Any anchor link that contains a recognizable product URL
+        for a in soup.find_all('a', href=True):
+            href = a['href']
+            match = asin_pattern.search(href)
+            if match:
+                found_asins.add(match.group(1))
+
+        # 2) Elements that expose ASIN in attributes (common on wishlist)
+        for el in soup.find_all(attrs={'data-asin': True}):
+            asin = el.get('data-asin', '').strip()
+            if asin and len(asin) == 10:
+                found_asins.add(asin)
+
+        logger.info(f"Found {len(found_asins)} unique ASINs on wishlist page")
+
         books = []
-        seen_urls = set()  # Cache to avoid duplicates
-        for link in book_links:
-            href = link.get('href', '')
-            if href.startswith('/'):
-                href = f"https://www.amazon.com{href}"
-            # Strip everything after '?' to remove parameters
-            href = href.split('?')[0]
-            # Skip if URL already seen
-            if href in seen_urls:
-                continue
-            seen_urls.add(href)
-            logger.debug(f"Link: {href}")
-            logger.debug(f"Text: {link.get_text(strip=True)}")           
-            # Get detailed book information using the wishlist page.
-            title, author, isbn = get_book_details_from_wishlist(href, soup)
+        for asin in found_asins:
+            canonical_url = f"https://www.amazon.com/dp/{asin}"
+            logger.debug(f"Processing ASIN {asin} -> {canonical_url}")
+
+            # Try to extract details from the wishlist markup first
+            title, author, isbn = get_book_details_from_wishlist(canonical_url, soup)
             if not title:
-                # If it fails try the URL directly... this often times fails headless. 
-                title, author, isbn = get_book_details_from_url(href)                
+                # Fallback: load the product page
+                title, author, isbn = get_book_details_from_url(canonical_url)
+
             logger.debug(f"  Title: {title}")
             logger.debug(f"  Author: {author}")
             logger.debug(f"  ISBN: {isbn}")
+
             if not title:
-                logger.error(f"  No title found for {href}")
+                logger.error(f"  No title found for {canonical_url}")
                 continue
-            # Save to the list if title and author are found
-            if title and author:
+
+            if title and (author or isbn):
                 books.append({
                     'title': title,
                     'author': author,
-                    'url': href,
+                    'url': canonical_url,
                     'isbn': isbn
                 })
                 logger.info(f"Added book: {title}")
             logger.debug("---")
         
-        # Use the correct selector for wishlist items
-        wishlist_items = soup.find_all('div', class_='awl-ul-item-container-desktop')
-        logger.info(f"Found {len(wishlist_items)} wishlist items using 'awl-ul-item-container-desktop' selector")
+        # Optional: debug count of visible wishlist tiles
+        wishlist_items = soup.find_all(['div', 'li'], attrs={'data-asin': True})
+        logger.info(f"Detected {len(wishlist_items)} potential wishlist items with data-asin")
         
         return books
         
