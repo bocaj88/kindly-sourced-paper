@@ -3,7 +3,7 @@ import json
 import time
 import threading
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_from_directory, abort
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_from_directory, abort, make_response
 from werkzeug.utils import secure_filename
 import logging
 from logging.handlers import RotatingFileHandler
@@ -865,6 +865,68 @@ def api_remove_already_downloaded():
     except Exception as e:
         add_log(f"Error removing from already downloaded list: {e}", 'error')
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# Serve /favicon.ico directly for browsers and crawlers
+@app.route('/favicon.ico')
+def favicon():
+    try:
+        return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+    except Exception:
+        abort(404)
+
+# ----- PWA: Manifest and Service Worker Routes -----
+@app.route('/manifest.webmanifest')
+@app.route('/manifest.json')
+def webmanifest():
+    try:
+        manifest = {
+            "name": "KindleSource",
+            "short_name": "KindleSource",
+            "start_url": "/",
+            "scope": "/",
+            "display": "standalone",
+            "background_color": "#111111",
+            "theme_color": "#111111",
+            "icons": [
+                {"src": url_for('static', filename='icons/icon-192.png'), "sizes": "192x192", "type": "image/png"},
+                {"src": url_for('static', filename='icons/icon-512.png'), "sizes": "512x512", "type": "image/png"}
+            ]
+        }
+        response = make_response(json.dumps(manifest))
+        response.headers['Content-Type'] = 'application/manifest+json'
+        return response
+    except Exception as e:
+        add_log(f"Error serving manifest: {e}", 'error')
+        return jsonify({"error": "Manifest unavailable"}), 500
+
+
+@app.route('/service-worker.js')
+def service_worker():
+    try:
+        sw_js = (
+            "self.addEventListener('install', event => {\n" 
+            "  self.skipWaiting();\n" 
+            "});\n"
+            "self.addEventListener('activate', event => {\n"
+            "  event.waitUntil(clients.claim());\n"
+            "});\n"
+            "self.addEventListener('fetch', event => {\n"
+            "  event.respondWith((async () => {\n"
+            "    try {\n"
+            "      const networkResponse = await fetch(event.request);\n"
+            "      return networkResponse;\n"
+            "    } catch (e) {\n"
+            "      return caches.match(event.request).then(cached => cached || Response.error());\n"
+            "    }\n"
+            "  })());\n"
+            "});\n"
+        )
+        response = make_response(sw_js)
+        response.headers['Content-Type'] = 'application/javascript'
+        return response
+    except Exception as e:
+        add_log(f"Error serving service worker: {e}", 'error')
+        return jsonify({"error": "Service worker unavailable"}), 500
 
 # Initialize cache on startup
 load_cache()
