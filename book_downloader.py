@@ -13,6 +13,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Constants
 LIBGEN_BASE_URL = "https://libgen.li"
+# Helpful for checking status https://www.libgen.help/
+# Another one for status https://open-slum.org/
+
+# Other book sites: 
+# https://annas-archive.org/
+# https://z-lib.gd/
+# https://welib.org/
+
 
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
     
