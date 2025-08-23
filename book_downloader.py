@@ -16,6 +16,9 @@ LIBGEN_BASE_URL = "https://libgen.li"
 # Helpful for checking status https://www.libgen.help/
 # Another one for status https://open-slum.org/
 
+# Libgen Mirrors:
+# .li, .gs, .vg, .la, .bz, .gl, .le
+
 # Other book sites: 
 # https://annas-archive.org/
 # https://z-lib.gd/
